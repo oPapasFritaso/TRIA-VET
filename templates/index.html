@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIA-VET | Plataforma Inteligente</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="nav-brand">TRIA-<span>VET</span></div>
+            <ul class="nav-links">
+                <li><a href="#" id="nav-enfermedad" class="active">Consulta de enfermedad</a></li>
+                <li><a href="#" id="nav-desparasitante">Consulta de desparasitante</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="page-shell">
+        <header class="app-header">
+            <div>
+                <p class="eyebrow">Soporte de Decisiones Clínicas</p>
+                <h1 id="form-title">Análisis de Triaje 🐾</h1>
+                <p id="form-desc">Clasificación preliminar para perros y gatos mediante evaluación de síntomas.</p>
+            </div>
+
+            <div class="status-panel">
+                <span class="status {{ 'online' if prolog_disponible else 'warning' }}">
+                    Prolog: {{ 'conectado' if prolog_disponible else 'respaldo' }}
+                </span>
+                <span class="status {{ 'online' if firebase_disponible else 'warning' }}">
+                    Firestore: {{ 'conectado' if firebase_disponible else 'pendiente' }}
+                </span>
+                <span class="status {{ 'online' if vision_disponible else 'warning' }}">
+                    Visión: {{ 'MobileNetV2' if vision_disponible else 'pendiente' }}
+                </span>
+            </div>
+        </header>
+
+        <section class="workspace">
+            <form id="form-analisis" class="form-panel" enctype="multipart/form-data">
+                <input type="hidden" name="modo" id="modo" value="enfermedad">
+
+                <div class="section-title">
+                    <span>1</span>
+                    <div>
+                        <h2>Perfil del paciente</h2>
+                        <p>Captura la biometría de la mascota.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Nombre *</span>
+                        <input type="text" name="nombre" placeholder="Nombre" required>
+                    </label>
+
+                    <label class="field">
+                        <span>Especie *</span>
+                        <select name="especie" id="especie" required>
+                            <option value="">Selecciona</option>
+                            <option value="perro">Perro</option>
+                            <option value="gato">Gato</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Raza</span>
+                        <select name="raza" id="raza">
+                            <option value="">Selecciona primero la especie</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Peso (kg) *</span>
+                        <input type="number" step="0.1" name="peso" min="0.1" max="100" placeholder="Ej. 4.5" required>
+                    </label>
+
+                    <label class="field">
+                        <span>Edad (años)</span>
+                        <input type="number" name="edad" min="0" max="30" placeholder="Ej. 1">
+                    </label>
+
+                    <label class="field">
+                        <span>Sexo</span>
+                        <select name="sexo">
+                            <option value="">Selecciona</option>
+                            <option value="macho">Macho</option>
+                            <option value="hembra">Hembra</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Nivel de actividad</span>
+                        <select name="actividad">
+                            <option value="">Selecciona</option>
+                            <option value="baja">Baja</option>
+                            <option value="media">Media</option>
+                            <option value="alta">Alta</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="section-title">
+                    <span>2</span>
+                    <div>
+                        <h2>Reconocimiento Visual</h2>
+                        <p>Sube una foto para identificar la raza con IA.</p>
+                    </div>
+                </div>
+
+                <label class="upload-box" id="upload-box">
+                    <input type="file" name="foto" id="foto" accept=".png,.jpg,.jpeg,.webp">
+                    <div id="upload-placeholder">
+                        <strong>Toca para subir fotografía</strong>
+                        <small>PNG, JPG o WEBP. Máximo 5 MB.</small>
+                    </div>
+                    <img id="preview" alt="Vista previa de la mascota">
+                </label>
+                <button class="secondary-button" type="button" id="btn-reconocer">
+                    Escanear especie y raza
+                </button>
+                <div id="vision-resultado" class="vision-result"></div>
+
+                <div id="seccion-sintomas-farmacos">
+                    <div class="section-title">
+                        <span>3</span>
+                        <div>
+                            <h2>Cuadro Clínico</h2>
+                            <p>Marca los signos observados en el paciente.</p>
+                        </div>
+                    </div>
+
+                    <div class="symptom-groups">
+                        {% for categoria, opciones in sintomas.items() %}
+                        <fieldset class="symptom-card">
+                            <legend>{{ categoria }}</legend>
+                            {% for valor, etiqueta in opciones %}
+                            <label class="check-option">
+                                <input type="checkbox" name="sintomas" value="{{ valor }}">
+                                <span class="fake-check">✓</span>
+                                <span>{{ etiqueta }}</span>
+                            </label>
+                            {% endfor %}
+                        </fieldset>
+                        {% endfor %}
+                    </div>
+
+                    <div class="section-title">
+                        <span>4</span>
+                        <div>
+                            <h2>Farmacovigilancia</h2>
+                            <p>¿Se le administró algún medicamento humano?</p>
+                        </div>
+                    </div>
+
+                    <label class="field full">
+                        <span>Medicamento</span>
+                        <select name="medicamento" id="medicamento">
+                            {% for valor, etiqueta in medicamentos %}
+                            <option value="{{ valor }}">{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+
+                <button class="primary-button" type="submit" id="btn-analizar">
+                    <span id="txt-btn-analizar">Procesar Triaje</span>
+                </button>
+
+                <div id="mensajes" class="messages" aria-live="polite"></div>
+            </form>
+
+            <aside class="results-panel">
+                <div class="results-empty" id="results-empty">
+                    <div class="pet-icon">🩺</div>
+                    <h2>Resultados del sistema</h2>
+                    <p>Completa el formulario para procesar la información.</p>
+                </div>
+
+                <div id="results-content" class="results-content hidden">
+                    
+                    <div id="tarjeta-triaje" class="result-card triaje-card">
+                        <p class="card-label">Clasificación de riesgo</p>
+                        <div class="triaje-row">
+                            <strong id="triaje-text">Bajo</strong>
+                            <span id="triaje-badge">Nivel bajo</span>
+                        </div>
+                    </div>
+
+                    <div id="tarjeta-diagnostico" class="result-card">
+                        <p class="card-label">Diagnóstico preliminar</p>
+                        <div id="diagnosticos"></div>
+                    </div>
+
+                    <div id="tarjeta-dosis" class="result-card hidden" style="border-color: #bfead6; background: #ecfbf4;">
+                        <p class="card-label">Guía Nutricional y Preventiva</p>
+                        <div id="dosis-desparasitante"></div>
+                    </div>
+
+                    <div class="result-card blue">
+                        <p class="card-label">Perfil y recomendación por raza</p>
+                        <div id="perfil-raza"></div>
+                    </div>
+
+                    <div id="tarjeta-farmaco" class="result-card amber">
+                        <p class="card-label">Farmacovigilancia</p>
+                        <div id="advertencia"></div>
+                    </div>
+
+                    <div class="disclaimer">
+                        Este resultado es orientativo y no sustituye la valoración clínica presencial de un médico veterinario.
+                    </div>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <script>
+        window.RAZAS = {{ razas | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
